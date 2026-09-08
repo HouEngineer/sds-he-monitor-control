@@ -6,3 +6,5 @@ Carthage
 
 ### Xcode ###
 xcuserdata/
+### Build output ###
+build/
