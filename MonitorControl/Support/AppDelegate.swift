@@ -11,11 +11,12 @@ import SimplyCoreAudio
 import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-  let statusItem: NSStatusItem = {
+  lazy var statusItem: NSStatusItem = {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     item.behavior = .removalAllowed
     return item
   }()
+  var isCli = false
   var mediaKeyTap = MediaKeyTapManager()
   var keyboardShortcuts = KeyboardShortcutsManager()
   let coreAudio = SimplyCoreAudio()
@@ -176,7 +177,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.sleepNotification), name: NSWorkspace.willSleepNotification, object: nil)
     NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.wakeNotification), name: NSWorkspace.didWakeNotification, object: nil)
     _ = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(rawValue: NSNotification.Name.accessibilityApi.rawValue), object: nil, queue: nil) { _ in DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.updateMediaKeyTap() } } // listen for accessibility status changes
+    DistributedNotificationCenter.default().addObserver(self, selector: #selector(self.handleCliCommand(_:)), name: CliHandler.commandNotificationName, object: nil) // CLI command relay (only reached in GUI mode; the CLI process never calls this)
     self.statusItemObserver = statusItem.observe(\.isVisible, options: [.old, .new]) { _, _ in self.statusItemVisibilityChanged() }
+  }
+
+  /// Handles `set` commands relayed from a CLI invocation: virtual/software-dimmed displays are shaded by an on-screen window owned by this app, so only the running GUI can change their brightness.
+  @objc func handleCliCommand(_ notification: Notification) {
+    guard let userInfo = notification.userInfo as? [String: String], let payload = userInfo["payload"], let data = payload.data(using: .utf8), let command = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], command["command"] as? String == "setBrightness" else {
+      return
+    }
+    let nonce = command["nonce"] as? String
+    guard let ids = (command["ids"] as? [Int])?.compactMap({ UInt32(exactly: $0) }), let value = command["value"] as? Int, (0 ... 100).contains(value) else {
+      self.postCliAck(nonce: nonce, ok: false)
+      return
+    }
+    DispatchQueue.main.async {
+      var ok = !ids.isEmpty
+      for id in ids {
+        guard let display = DisplayManager.shared.displays.first(where: { $0.identifier == id }) else {
+          ok = false
+          continue
+        }
+        let newValue = max(0, min(1, Float(value) / 100))
+        if !display.setBrightness(newValue) {
+          ok = false
+        }
+        if let slider = display.sliderHandler[.brightness] {
+          slider.setValue(newValue, displayID: display.identifier)
+        }
+      }
+      self.postCliAck(nonce: nonce, ok: ok)
+    }
+  }
+
+  private func postCliAck(nonce: String?, ok: Bool) {
+    var payload: [String: Any] = ["ok": ok]
+    if let nonce {
+      payload["nonce"] = nonce
+    }
+    guard let data = try? JSONSerialization.data(withJSONObject: payload), let json = String(data: data, encoding: .utf8) else {
+      return
+    }
+    DistributedNotificationCenter.default().postNotificationName(CliHandler.ackNotificationName, object: nil, userInfo: ["payload": json], deliverImmediately: true)
   }
 
   @objc private func sleepNotification() {

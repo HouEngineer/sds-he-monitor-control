@@ -32,5 +32,11 @@ autoreleasepool { () in
   let mc = NSApplication.shared
   let mcDelegate = AppDelegate()
   mc.delegate = mcDelegate
+  if let cliHandler = CliHandler(arguments: CommandLine.arguments) {
+    app = mcDelegate // must be set before any Display operation (IUO guards in writeDDCValues etc.)
+    mcDelegate.isCli = true
+    let status = cliHandler.run()
+    exit(status)
+  }
   mc.run()
 }

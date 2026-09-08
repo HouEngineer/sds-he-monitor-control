@@ -76,7 +76,7 @@ class OtherDisplay: Display {
   }
 
   func restoreDDCSettingsToDisplay(command: Command) {
-    if !self.smoothBrightnessRunning, !self.isSw(), !self.readPrefAsBool(key: .unavailableDDC, for: command), self.readPrefAsBool(key: .isTouched, for: command), prefs.integer(forKey: PrefKey.startupAction.rawValue) == StartupAction.write.rawValue, !app.safeMode {
+    if !app.isCli, !self.smoothBrightnessRunning, !self.isSw(), !self.readPrefAsBool(key: .unavailableDDC, for: command), self.readPrefAsBool(key: .isTouched, for: command), prefs.integer(forKey: PrefKey.startupAction.rawValue) == StartupAction.write.rawValue, !app.safeMode {
       let restoreValue = self.getDDCValueFromPrefs(command)
       os_log("Restoring %{public}@ DDC value %{public}@ for %{public}@", type: .info, String(reflecting: command), String(restoreValue), self.name)
       self.writeDDCValues(command: command, value: restoreValue)
@@ -102,7 +102,7 @@ class OtherDisplay: Display {
     }
     os_log("Setting up display %{public}@ for %{public}@", type: .info, String(self.identifier), String(reflecting: command))
     if !self.isSw() {
-      if prefs.integer(forKey: PrefKey.startupAction.rawValue) == StartupAction.read.rawValue, self.pollingCount != 0, !app.safeMode {
+      if !app.isCli, prefs.integer(forKey: PrefKey.startupAction.rawValue) == StartupAction.read.rawValue, self.pollingCount != 0, !app.safeMode {
         os_log("- Reading DDC from display %{public}@ times", type: .info, String(self.pollingCount))
         let delay = self.readPrefAsBool(key: .longerDelay) ? UInt64(40 * kMillisecondScale) : nil
         ddcValues = self.readDDCValues(for: command, tries: UInt(self.pollingCount), minReplyDelay: delay)
