@@ -225,7 +225,92 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     }
   }
 
+  // MARK: - Brightness presets (custom)
+
+  /// Preset button tag -> display name substrings that should be dimmed to 1%; all other displays go to 100%.
+  private static let brightnessPresets: [(tag: Int, title: String, darkDisplays: [String])] = [
+    (1, "亮亮亮", []),
+    (2, "暗亮暗", ["彩色LCD", "Q27P10"]),
+    (3, "暗亮亮", ["彩色LCD"]),
+    (4, "亮亮暗", ["Q27P10"]),
+  ]
+
+  /// Cell order of the preset button graphics, left to right.
+  private static let presetDisplayOrder = ["彩色LCD", "Q27B3M2", "Q27P10"]
+
+  /// Draws the button image: one cell per display, gray when dimmed to 1%, white when at 100%.
+  private static func presetImage(for preset: (tag: Int, title: String, darkDisplays: [String])) -> NSImage {
+    let cellWidth = CGFloat(15)
+    let cellHeight = CGFloat(14)
+    let gap = CGFloat(3)
+    let count = MenuHandler.presetDisplayOrder.count
+    let size = NSSize(width: CGFloat(count) * cellWidth + CGFloat(count - 1) * gap, height: cellHeight)
+    return NSImage(size: size, flipped: false) { _ in
+      for (index, orderedName) in MenuHandler.presetDisplayOrder.enumerated() {
+        let isDark = preset.darkDisplays.contains { orderedName.lowercased().contains($0.lowercased()) }
+        let rect = NSRect(x: CGFloat(index) * (cellWidth + gap), y: 0, width: cellWidth, height: cellHeight)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 3, yRadius: 3)
+        (isDark ? NSColor.systemGray : NSColor.white).setFill()
+        path.fill()
+        NSColor.black.withAlphaComponent(0.35).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+      }
+      return true
+    }
+  }
+
+  private func addBrightnessPresetRow() {
+    let viewWidth = max(240, self.size.width)
+    let rowHeight = CGFloat(26)
+    let rowView = NSView(frame: NSRect(x: 0, y: 0, width: viewWidth, height: rowHeight))
+    let margin = CGFloat(8)
+    let spacing = CGFloat(6)
+    let buttonCount = CGFloat(MenuHandler.brightnessPresets.count)
+    let buttonWidth = (viewWidth - margin * 2 - spacing * (buttonCount - 1)) / buttonCount
+    for (index, preset) in MenuHandler.brightnessPresets.enumerated() {
+      let button = NSButton()
+      button.bezelStyle = .regularSquare
+      button.isBordered = false
+      button.setButtonType(.momentaryChange)
+      let image = MenuHandler.presetImage(for: preset)
+      button.image = image
+      button.alternateImage = image
+      button.imagePosition = .imageOnly
+      button.imageScaling = .scaleProportionallyDown
+      button.toolTip = preset.title
+      button.tag = preset.tag
+      button.target = self
+      button.action = #selector(self.brightnessPresetClicked(_:))
+      button.frame = NSRect(x: margin + CGFloat(index) * (buttonWidth + spacing), y: 4, width: buttonWidth, height: rowHeight - 8)
+      rowView.addSubview(button)
+    }
+    let item = NSMenuItem()
+    item.view = rowView
+    self.insertItem(item, at: self.items.count)
+  }
+
+  @objc func brightnessPresetClicked(_ sender: NSButton) {
+    guard let preset = MenuHandler.brightnessPresets.first(where: { $0.tag == sender.tag }) else {
+      return
+    }
+    self.closeMenu()
+    os_log("Applying brightness preset %{public}@", type: .info, preset.title)
+    for display in DisplayManager.shared.displays {
+      let lowercasedName = display.name.lowercased()
+      let isDark = preset.darkDisplays.contains { lowercasedName.contains($0.lowercased()) }
+      let value: Float = isDark ? 0.01 : 1
+      _ = display.setBrightness(value)
+      if let slider = display.sliderHandler[.brightness] {
+        slider.setValue(value, displayID: display.identifier)
+      }
+    }
+  }
+
   func addDefaultMenuOptions() {
+    if prefs.integer(forKey: PrefKey.menuItemStyle.rawValue) != MenuItemStyle.hide.rawValue {
+      self.addBrightnessPresetRow()
+    }
     if !DEBUG_MACOS10, #available(macOS 11.0, *), prefs.integer(forKey: PrefKey.menuItemStyle.rawValue) == MenuItemStyle.icon.rawValue {
       let iconSize = CGFloat(18)
       let viewWidth = max(130, self.size.width)
