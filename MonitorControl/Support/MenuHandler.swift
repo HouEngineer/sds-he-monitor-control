@@ -227,7 +227,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
 
   // MARK: - Brightness presets (custom)
 
-  /// Preset button tag -> display name substrings that should be dimmed to 1%; all other displays go to 100%.
+  /// Preset button tag -> display name substrings that should be dimmed; all other displays go to 100%.
   private static let brightnessPresets: [(tag: Int, title: String, darkDisplays: [String])] = [
     (1, "亮亮亮", []),
     (2, "暗亮暗", ["彩色LCD", "Q27P10"]),
@@ -235,10 +235,22 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     (4, "亮亮暗", ["Q27P10"]),
   ]
 
+  /// Brightness a display dims to in a dark preset: the built-in display goes to 10%, others to 1%.
+  private static let dimValueForDisplays: [(substring: String, value: Float)] = [
+    ("彩色LCD", 0.1),
+  ]
+
+  private static let defaultDimValue: Float = 0.01
+
+  private static func dimValue(for displayName: String) -> Float {
+    let lowercasedName = displayName.lowercased()
+    return MenuHandler.dimValueForDisplays.first { lowercasedName.contains($0.substring.lowercased()) }?.value ?? MenuHandler.defaultDimValue
+  }
+
   /// Cell order of the preset button graphics, left to right.
   private static let presetDisplayOrder = ["彩色LCD", "Q27B3M2", "Q27P10"]
 
-  /// Draws the button image: one cell per display, gray when dimmed to 1%, white when at 100%.
+  /// Draws the button image: one cell per display, gray when dimmed, white when at 100%.
   private static func presetImage(for preset: (tag: Int, title: String, darkDisplays: [String])) -> NSImage {
     let cellWidth = CGFloat(15)
     let cellHeight = CGFloat(14)
@@ -299,7 +311,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
     for display in DisplayManager.shared.displays {
       let lowercasedName = display.name.lowercased()
       let isDark = preset.darkDisplays.contains { lowercasedName.contains($0.lowercased()) }
-      let value: Float = isDark ? 0.01 : 1
+      let value: Float = isDark ? MenuHandler.dimValue(for: display.name) : 1
       _ = display.setBrightness(value)
       if let slider = display.sliderHandler[.brightness] {
         slider.setValue(value, displayID: display.identifier)
