@@ -87,7 +87,16 @@ enum PrefKey: String {
   // Sliders for multiple displays
   case multiSliders
 
+  // Brightness follows windows: displays with windows brighten, windowless displays dim
+  case enableWindowAwareBrightness
+
+  // Seconds a display must stay windowless before it dims (window-aware brightness)
+  case windowAwareDimDelay
+
   /* -- Display specific settings */
+
+  // Exclude display from window-aware brightness (per-display)
+  case windowAwareExcluded
 
   // Enable mute DDC for display
   case enableMuteUnmute

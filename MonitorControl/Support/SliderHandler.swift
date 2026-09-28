@@ -332,6 +332,9 @@ class SliderHandler {
       }
     }
     slider.setDisplayHighlightItems(false)
+    if self.command == .brightness {
+      app.windowAwareBrightness.noteManualBrightnessChange(on: self.displays)
+    }
   }
 
   func updateIcon() {

@@ -19,6 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   var isCli = false
   var mediaKeyTap = MediaKeyTapManager()
   var keyboardShortcuts = KeyboardShortcutsManager()
+  var windowAwareBrightness = WindowAwareBrightnessManager()
   let coreAudio = SimplyCoreAudio()
   var accessibilityObserver: NSObjectProtocol!
   var statusItemObserver: NSObjectProtocol!
@@ -154,6 +155,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     displaysPrefsVc?.loadDisplayList()
     self.job(start: true)
+    self.windowAwareBrightness.start()
   }
 
   func updateMenusAndKeys() {
@@ -249,6 +251,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         os_log("Displays don't need reconfig after sober but might need AVServices update", type: .info)
         DisplayManager.shared.updateArm64AVServices()
         self.job(start: true)
+        self.windowAwareBrightness.start()
       }
       self.startupActionWriteRepeatAfterSober()
       self.updateMediaKeyTap()
@@ -285,7 +288,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let delta = display.refreshBrightness()
         if delta != 0 {
           refreshedSomething = true
-          if prefs.bool(forKey: PrefKey.enableBrightnessSync.rawValue) {
+          if prefs.bool(forKey: PrefKey.enableBrightnessSync.rawValue), !prefs.bool(forKey: PrefKey.enableWindowAwareBrightness.rawValue) {
             for targetDisplay in DisplayManager.shared.displays where targetDisplay != display {
               os_log("Updating delta from display %{public}@ to display %{public}@", type: .info, String(display.identifier), String(targetDisplay.identifier))
               let newValue = max(0, min(1, targetDisplay.getBrightness() + delta))

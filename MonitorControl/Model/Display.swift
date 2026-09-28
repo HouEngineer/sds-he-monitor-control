@@ -105,6 +105,7 @@ class Display: Equatable {
         slider.setValue(value, displayID: self.identifier)
         self.brightnessSyncSourceValue = value
       }
+      app.windowAwareBrightness.noteManualBrightnessChange(on: [self])
     }
   }
 

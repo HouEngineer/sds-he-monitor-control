@@ -242,7 +242,7 @@ class MenuHandler: NSMenu, NSMenuDelegate {
 
   private static let defaultDimValue: Float = 0.01
 
-  private static func dimValue(for displayName: String) -> Float {
+  static func dimValue(for displayName: String) -> Float {
     let lowercasedName = displayName.lowercased()
     return MenuHandler.dimValueForDisplays.first { lowercasedName.contains($0.substring.lowercased()) }?.value ?? MenuHandler.defaultDimValue
   }
@@ -317,12 +317,28 @@ class MenuHandler: NSMenu, NSMenuDelegate {
         slider.setValue(value, displayID: display.identifier)
       }
     }
+    app.windowAwareBrightness.noteManualBrightnessChange()
+  }
+
+  @objc func windowAwareToggleClicked(_ sender: NSMenuItem) {
+    let enabled = !prefs.bool(forKey: PrefKey.enableWindowAwareBrightness.rawValue)
+    prefs.set(enabled, forKey: PrefKey.enableWindowAwareBrightness.rawValue)
+    sender.state = enabled ? .on : .off
+    if enabled {
+      app.windowAwareBrightness.start()
+    } else {
+      app.windowAwareBrightness.stop()
+    }
   }
 
   func addDefaultMenuOptions() {
     if prefs.integer(forKey: PrefKey.menuItemStyle.rawValue) != MenuItemStyle.hide.rawValue {
       self.addBrightnessPresetRow()
     }
+    let windowAwareItem = NSMenuItem(title: NSLocalizedString("亮度跟随窗口", comment: "Menu item toggling window-aware brightness"), action: #selector(self.windowAwareToggleClicked(_:)), keyEquivalent: "")
+    windowAwareItem.target = self
+    windowAwareItem.state = prefs.bool(forKey: PrefKey.enableWindowAwareBrightness.rawValue) ? .on : .off
+    self.insertItem(windowAwareItem, at: self.items.count)
     if !DEBUG_MACOS10, #available(macOS 11.0, *), prefs.integer(forKey: PrefKey.menuItemStyle.rawValue) == MenuItemStyle.icon.rawValue {
       let iconSize = CGFloat(18)
       let viewWidth = max(130, self.size.width)
