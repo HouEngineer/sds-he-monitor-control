@@ -122,6 +122,14 @@ git clone https://github.com/MonitorControl/MonitorControl.git
 - If you want to clone one of the branches, add `--single-branch --branch [branchname]` after the `clone` option.
 - You're all set! Now open the `MonitorControl.xcodeproj` with Xcode! The dependencies will automatically get downloaded once you open the project. If they don't: `File > Packages > Resolve Package Versions`
 
+### 本仓库定制说明（个人定制，不回传上游）
+
+本仓库为 MonitorControl 的个人定制版，仅在本机自用，与上游的差异：
+
+- **Ad-hoc 签名（Sign to Run Locally）**：项目已配置为 ad-hoc 签名（`CODE_SIGN_IDENTITY = "-"`、`CODE_SIGN_STYLE = Manual`、无 `DEVELOPMENT_TEAM`），构建和运行**不需要 Apple Developer 账号**，直接 `xcodebuild -project MonitorControl.xcodeproj -scheme MonitorControl build` 或在 Xcode 中 Cmd+R 即可。本机构建、本机运行的 app 不会被 Gatekeeper 拦截。
+  - 附带影响：Sparkle 自动更新功能不可用（ad-hoc 签名无法通过更新包校验），更新方式为本仓库 `git pull` 后重新构建。
+- **部署目标已升至 macOS 12.0**（上游为 10.14/10.15），以兼容新版 Xcode 的最低部署目标要求。
+
 ### Third party dependencies
 
 - [MediaKeyTap](https://github.com/MonitorControl/MediaKeyTap)
