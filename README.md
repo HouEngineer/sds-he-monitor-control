@@ -126,8 +126,9 @@ git clone https://github.com/MonitorControl/MonitorControl.git
 
 本仓库为 MonitorControl 的个人定制版，仅在本机自用，与上游的差异：
 
-- **Ad-hoc 签名（Sign to Run Locally）**：项目已配置为 ad-hoc 签名（`CODE_SIGN_IDENTITY = "-"`、`CODE_SIGN_STYLE = Manual`、无 `DEVELOPMENT_TEAM`），构建和运行**不需要 Apple Developer 账号**，直接 `xcodebuild -project MonitorControl.xcodeproj -scheme MonitorControl build` 或在 Xcode 中 Cmd+R 即可。本机构建、本机运行的 app 不会被 Gatekeeper 拦截。
-  - 附带影响：Sparkle 自动更新功能不可用（ad-hoc 签名无法通过更新包校验），更新方式为本仓库 `git pull` 后重新构建。
+- **Apple Development 个人证书签名**：项目配置为 `CODE_SIGN_STYLE = Manual`、`CODE_SIGN_IDENTITY = "Apple Development: ..."`（钥匙串中的免费个人开发者证书）、无 `DEVELOPMENT_TEAM`，构建和运行**不需要付费开发者账号**，直接 `xcodebuild -project MonitorControl.xcodeproj -scheme MonitorControl build` 或在 Xcode 中 Cmd+R 即可。本机构建、本机运行的 app 不会被 Gatekeeper 拦截。
+  - 用证书而非 ad-hoc 签名的原因：辅助功能（TCC）授权绑定签名身份，证书签名后每次构建替换 `/Applications` 里的 app **无需重新授权**（ad-hoc 每次构建 cdhash 都变，会被视为不同 app）。
+  - 附带影响：Sparkle 自动更新功能不可用（分发场景需要 Developer ID + 公证），更新方式为本仓库 `git pull` 后重新构建。个人证书有效期约一年，到期 Xcode 自动续期后需重新授权一次。
 - **部署目标已升至 macOS 12.0**（上游为 10.14/10.15），以兼容新版 Xcode 的最低部署目标要求。
 
 ### Third party dependencies
